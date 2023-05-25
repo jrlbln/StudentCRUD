@@ -1,13 +1,16 @@
 package com.application.student;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -29,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText searchStudentIdEditText;
     private Button searchButton;
 
-    private EditText updateStudentIdEditText;
+    private TextView updateStudentIdEditText;
     private EditText updateStudentNameEditText;
     private EditText updateStudentYASEditText;
     private EditText updateStudentNumberEditText;
@@ -136,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
                             String studentNumber = documentSnapshot.getString("Student Number");
 
                             // Set the retrieved data in the update fields
-                            updateStudentIdEditText.setText(String.valueOf(id));
+                            updateStudentIdEditText.setText("ID: " + id);
                             updateStudentNameEditText.setText(name);
                             updateStudentYASEditText.setText(yearAndSection);
                             updateStudentNumberEditText.setText(studentNumber);
@@ -156,22 +159,22 @@ public class MainActivity extends AppCompatActivity {
         String updatedYAS = updateStudentYASEditText.getText().toString();
         String updatedStudentNumber = updateStudentNumberEditText.getText().toString();
 
-        // Convert the studentId to an integer
-        int id = Integer.parseInt(studentId);
-
         Map<String, Object> updatedData = new HashMap<>();
-        updatedData.put("ID", id); // Update the ID field
         updatedData.put("Name", updatedName);
         updatedData.put("Year and Section", updatedYAS);
         updatedData.put("Student Number", updatedStudentNumber);
 
         db.collection("students")
-                .whereEqualTo("ID", id)
+                .whereEqualTo("ID", Integer.parseInt(studentId))
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
                             String documentId = documentSnapshot.getId();
+
+                            // Retrieve the existing ID and add it to the updated data
+                            int existingId = documentSnapshot.getLong("ID").intValue();
+                            updatedData.put("ID", existingId);
 
                             db.collection("students")
                                     .document(documentId)
@@ -233,5 +236,5 @@ public class MainActivity extends AppCompatActivity {
     private void showMessage(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
-    
+
 }
