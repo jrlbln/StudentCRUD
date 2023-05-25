@@ -18,6 +18,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends AppCompatActivity {
@@ -155,26 +156,30 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateStudent() {
         String studentId = updateStudentIdEditText.getText().toString();
+
+        // Extract the numeric part of the ID by removing the "ID: " prefix
+        String numericId = studentId.replace("ID: ", "");
+
+        // Convert the numericId to an integer
+        int id = Integer.parseInt(numericId);
+
         String updatedName = updateStudentNameEditText.getText().toString();
         String updatedYAS = updateStudentYASEditText.getText().toString();
         String updatedStudentNumber = updateStudentNumberEditText.getText().toString();
 
         Map<String, Object> updatedData = new HashMap<>();
+        updatedData.put("ID", id); // Update the ID field
         updatedData.put("Name", updatedName);
         updatedData.put("Year and Section", updatedYAS);
         updatedData.put("Student Number", updatedStudentNumber);
 
         db.collection("students")
-                .whereEqualTo("ID", Integer.parseInt(studentId))
+                .whereEqualTo("ID", id)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
                             String documentId = documentSnapshot.getId();
-
-                            // Retrieve the existing ID and add it to the updated data
-                            int existingId = documentSnapshot.getLong("ID").intValue();
-                            updatedData.put("ID", existingId);
 
                             db.collection("students")
                                     .document(documentId)
@@ -194,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                                     });
                         }
                     } else {
-                        Log.d(TAG, "No student document found with ID: " + studentId);
+                        Log.d(TAG, "No student document found with ID: " + id);
                     }
                 })
                 .addOnFailureListener(e -> {
