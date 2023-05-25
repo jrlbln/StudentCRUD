@@ -2,27 +2,25 @@ package com.application.student;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private FirebaseFirestore db;
-
-    private int currentId = 0;
-
     private EditText addStudentNameEditText;
     private EditText addStudentYASEditText;
     private EditText addStudentNumberEditText;
@@ -74,29 +72,48 @@ public class MainActivity extends AppCompatActivity {
         String yas = addStudentYASEditText.getText().toString();
         String studentNumber = addStudentNumberEditText.getText().toString();
 
-        // Increment the current ID for each new student
-        currentId++;
-
-        Map<String, Object> studentData = new HashMap<>();
-        studentData.put("ID", currentId); // Set the ID field
-        studentData.put("Name", name);
-        studentData.put("Year and Section", yas);
-        studentData.put("Student Number", studentNumber);
-
-        String documentName = String.valueOf(currentId); // Use the current ID as the document name
-
+        // Query Firestore to find the occupied document slots
         db.collection("students")
-                .document(documentName)
-                .set(studentData)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Student added with ID: " + documentName);
-                    addStudentNameEditText.setText(""); // Clear the input field
-                    addStudentYASEditText.setText(""); // Clear the input field
-                    addStudentNumberEditText.setText(""); // Clear the input field
-                    showMessage("Added Successfully"); // Display success message
+                .orderBy("ID", Query.Direction.ASCENDING)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    int newDocumentSlot = 1;
+
+                    for (DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
+                        int documentId = document.getLong("ID").intValue();
+                        if (documentId == newDocumentSlot) {
+                            // The current slot is occupied, move to the next slot
+                            newDocumentSlot++;
+                        } else if (documentId > newDocumentSlot) {
+                            // Found an available slot before the current document, break the loop
+                            break;
+                        }
+                    }
+
+                    Map<String, Object> studentData = new HashMap<>();
+                    studentData.put("ID", newDocumentSlot); // Set the ID field
+                    studentData.put("Name", name);
+                    studentData.put("Year and Section", yas);
+                    studentData.put("Student Number", studentNumber);
+
+                    String documentName = String.valueOf(newDocumentSlot); // Use the new document slot as the document name
+
+                    db.collection("students")
+                            .document(documentName)
+                            .set(studentData)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Student added with ID: " + documentName);
+                                addStudentNameEditText.setText(""); // Clear the input field
+                                addStudentYASEditText.setText(""); // Clear the input field
+                                addStudentNumberEditText.setText(""); // Clear the input field
+                                showMessage("Added Successfully"); // Display success message
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "Error adding student", e);
+                            });
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error adding student", e);
+                    Log.e(TAG, "Error querying documents", e);
                 });
     }
 
